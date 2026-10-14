@@ -109,9 +109,9 @@
   }
 
   // Builds one team's link payload from the host's hunt definition.
-  // route: ordered bar objects; final: final bar; holdCode: optional code
-  // the host reads out once every team has finished their route.
-  async function buildTeam(hunt, team, route, final, holdCode) {
+  // route: ordered bar objects; final: the last bar, whose clue a team gets
+  // as soon as it finishes its own route.
+  async function buildTeam(hunt, team, route, final) {
     const salt = randomBytes(16);
     const finalClue = { clue: final.clue, hint: final.hint || '', final: true };
     const finalAnswers = splitAnswers(final.answers);
@@ -120,13 +120,9 @@
     for (let i = 0; i < route.length; i++) {
       const bar = route[i];
       const payload = { bar: bar.name, msg: bar.msg || '' };
-      if (i < route.length - 1) {
-        payload.next = { clue: route[i + 1].clue, hint: route[i + 1].hint || '' };
-      } else if (holdCode) {
-        payload.lock = await seal(finalClue, splitAnswers(holdCode), salt);
-      } else {
-        payload.next = finalClue;
-      }
+      payload.next = i < route.length - 1
+        ? { clue: route[i + 1].clue, hint: route[i + 1].hint || '' }
+        : finalClue;
       stops.push(await seal(payload, splitAnswers(bar.answers), salt));
     }
     if (finalAnswers.length) {

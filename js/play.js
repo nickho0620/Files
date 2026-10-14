@@ -1,16 +1,8 @@
 (function () {
   const app = document.getElementById('app');
-  const toastEl = document.getElementById('toast');
   let hunt, salt, storeKey, state, timerId;
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-  function toast(msg) {
-    toastEl.textContent = msg;
-    toastEl.classList.add('show');
-    clearTimeout(toast.t);
-    toast.t = setTimeout(() => toastEl.classList.remove('show'), 2200);
-  }
 
   function save() {
     try { localStorage.setItem(storeKey, JSON.stringify(state)); } catch (e) { /* private mode: progress just won't persist */ }
@@ -74,7 +66,6 @@
     if (!state.startedAt) body = viewStart();
     else if (state.arrived) body = viewArrived();
     else if (state.done) body = viewDone();
-    else if (state.locked) body = viewLocked();
     else body = viewClue();
     app.innerHTML = header() + body + (state.startedAt && !state.done ? journey() + footer() : '');
     startTimer();
@@ -124,7 +115,7 @@
 
   function viewArrived() {
     const a = state.arrived;
-    const nextLabel = state.done ? 'See results' : state.locked ? 'Continue' : state.clue && state.clue.final ? 'Get the final clue' : 'Get the next clue';
+    const nextLabel = state.done ? 'See results' : state.clue && state.clue.final ? 'Get the final clue' : 'Get the next clue';
     return `
       <div class="card pop center">
         <div class="big-emoji">${state.done ? '🏆' : '✅'}</div>
@@ -132,20 +123,6 @@
         <div class="found">${esc(a.bar)}</div>
         ${a.msg ? `<div class="card msg" style="background:var(--bg-2)">${esc(a.msg)}</div>` : ''}
         <button class="btn primary block" style="margin-top:16px" data-act="continue">${nextLabel} →</button>
-      </div>`;
-  }
-
-  function viewLocked() {
-    return `
-      <div class="card pop center">
-        <div class="big-emoji">🔒</div>
-        <h2>Route complete!</h2>
-        <p class="muted">The final clue unlocks once every team has finished. Your host will give you the code.</p>
-        <form id="unlock-form" class="stack" autocomplete="off">
-          <input class="answer-input" name="code" type="text" placeholder="Unlock code" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Unlock code">
-          <button class="btn pink block" type="submit">Unlock final clue</button>
-        </form>
-        <p class="feedback" id="feedback" aria-live="polite"></p>
       </div>`;
   }
 
@@ -179,7 +156,7 @@
       return;
     }
     btn.disabled = false;
-    btn.textContent = form.id === 'unlock-form' ? 'Unlock final clue' : 'Check answer';
+    btn.textContent = 'Check answer';
     fb.textContent = ['Not quite. Try again!', 'Nope, keep looking.', 'Not it. Check the clue again.'][Math.floor(Math.random() * 3)];
     fb.className = 'feedback bad';
     form.classList.remove('shake');
@@ -199,9 +176,6 @@
       state.done = true;
       state.finishedAt = now;
       state.clue = null;
-    } else if (p.lock) {
-      state.locked = p.lock;
-      state.clue = null;
     } else {
       state.clue = p.next;
     }
@@ -214,15 +188,6 @@
     e.preventDefault();
     if (e.target.id === 'answer-form') {
       submitAnswer(e.target, hunt.stops[state.step], handleStop);
-    } else if (e.target.id === 'unlock-form') {
-      submitAnswer(e.target, state.locked, (clue) => {
-        state.locked = null;
-        state.clue = clue;
-        state.hintShown = false;
-        save();
-        render();
-        toast('Final clue unlocked!');
-      });
     }
   });
 
@@ -259,7 +224,7 @@
   });
 
   function fresh() {
-    return { step: 0, clue: hunt.first, log: [], startedAt: null, finishedAt: null, arrived: null, locked: null, done: false, hintShown: false };
+    return { step: 0, clue: hunt.first, log: [], startedAt: null, finishedAt: null, arrived: null, done: false, hintShown: false };
   }
 
   function fail(msg) {

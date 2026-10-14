@@ -17,8 +17,6 @@
       title: '',
       bars,
       final: { name: '', clue: '', hint: '', answers: '', msg: '' },
-      holdFinal: false,
-      releaseCode: '',
       stopsPerTeam: bars.length,
       teams: [1, 2, 3].map((n) => ({ name: 'Team ' + n, route: [] })),
     };
@@ -125,13 +123,6 @@
           <input type="text" data-bar="final" data-field="name" placeholder="Final bar name" value="${esc(f.name)}" aria-label="Final bar name">
         </div>
         ${barFields(f, true)}
-        <div class="card" style="margin-top:14px;background:var(--bg-2)">
-          <label class="check-row">
-            <input type="checkbox" id="hold-final" ${state.holdFinal ? 'checked' : ''}>
-            <span><strong>Hold the final clue until everyone's done</strong><br><span class="muted small">Teams that finish early see a lock screen. When every team is through, announce the code and they all get the final clue at once.</span></span>
-          </label>
-          <label class="field ${state.holdFinal ? '' : 'hidden'}" id="code-field" style="margin-top:12px"><span>Unlock code you'll announce</span><input type="text" id="release-code" placeholder="e.g. last call" value="${esc(state.releaseCode)}"></label>
-        </div>
       </div>`;
   }
 
@@ -173,7 +164,6 @@
     });
     if (!state.final.name.trim()) errs.push('The final bar needs a name.');
     if (!state.final.clue.trim()) errs.push('The final bar needs a clue.');
-    if (state.holdFinal && !Hunt.splitAnswers(state.releaseCode).length) errs.push('Set the unlock code for the final clue (or untick “Hold the final clue”).');
     if (!Hunt.splitAnswers(state.final.answers).length) notes.push('The final bar has no answer, so teams will tap “We made it!” when they arrive.');
 
     const names = new Map();
@@ -246,7 +236,7 @@
       for (let i = 0; i < state.teams.length; i++) {
         const team = state.teams[i];
         const route = team.route.map(barById);
-        const data = await Hunt.buildTeam(state, { name: team.name.trim() || `Team ${i + 1}` }, route, state.final, state.holdFinal ? state.releaseCode : '');
+        const data = await Hunt.buildTeam(state, { name: team.name.trim() || `Team ${i + 1}` }, route, state.final);
         out.push({ name: team.name.trim() || `Team ${i + 1}`, url: base.href + '#' + data, start: barLabel(route[0]) });
       }
     } catch (e) {
@@ -301,7 +291,6 @@
     }).join('');
     $('cheat').innerHTML = `
       <h1>${esc(state.title || 'Bar Hunt')}: host sheet</h1>
-      ${state.holdFinal ? `<p><strong>Final clue unlock code:</strong> ${esc(state.releaseCode)}</p>` : ''}
       ${rows}`;
   }
 
@@ -321,19 +310,12 @@
     } else if (t.id === 'title') {
       state.title = t.value;
       changed();
-    } else if (t.id === 'release-code') {
-      state.releaseCode = t.value;
-      changed();
     }
   });
 
   document.addEventListener('change', (e) => {
     const t = e.target;
-    if (t.id === 'hold-final') {
-      state.holdFinal = t.checked;
-      $('code-field').classList.toggle('hidden', !t.checked);
-      changed();
-    } else if (t.id === 'team-count') {
+    if (t.id === 'team-count') {
       const n = Math.max(1, Math.min(30, parseInt(t.value, 10) || 1));
       while (state.teams.length < n) state.teams.push({ name: 'Team ' + (state.teams.length + 1), route: [] });
       state.teams.length = n;

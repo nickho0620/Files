@@ -41,8 +41,6 @@
     .toolbar { position: sticky; top: 0; z-index: 10; background: rgba(14, 12, 20, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
     .toolbar .inner { max-width: 880px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .toolbar .brand { font: 800 1.1rem/1 var(--display); margin-right: auto; text-decoration: none; color: var(--text); }
-    .check-row { display: flex; gap: 12px; align-items: flex-start; }
-    .check-row input { margin-top: 2px; flex: none; }
     .stale { display: none; }
     .links-stale .stale { display: block; }
     @media print {
@@ -86,7 +84,7 @@
       <div class="section-head">
         <div>
           <h2><span class="step-num">2</span>Final bar</h2>
-          <p class="muted small">Every team gets this clue after finishing their route.</p>
+          <p class="muted small">Each team gets this clue as soon as it finishes all of its bars. No waiting on other teams.</p>
         </div>
       </div>
       <div id="final"></div>

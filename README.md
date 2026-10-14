@@ -3,7 +3,7 @@
 A bar-hopping scavenger hunt that runs in any phone browser and can be added to the home screen like an app. It's free to host and doesn't need a domain or a server.
 
 - **Teams** get a clue, find the bar, and enter the answer there. A correct answer shows the bar name, an optional message, and the next clue.
-- **Hosts** set up the bars, choose how many teams there are, and set each team's order (each team can start at a different bar). After a team finishes its route, it gets one final clue to the last bar. You can also hold that clue back until every team is done, then announce an unlock code.
+- **Hosts** set up the bars, choose how many teams there are, and set each team's order (each team can start at a different bar). As soon as a team finishes all of its bars, it gets the final clue to the last bar. No waiting on other teams.
 
 ## Put it online for free (GitHub Pages)
 
@@ -17,7 +17,7 @@ GitHub Pages on a free account only works for **public** repos. That's fine here
 
 1. Open `…/host.html` (or tap **Build a hunt** on the home page).
 2. Add your bars. For each bar, write the **clue that leads to it** and the **answer(s)** teams enter once they're there. The answer can be the bar's name or something they have to find inside, like the word on the chalkboard. List alternate answers with commas.
-3. Fill in the **final bar**. If you tick **Hold the final clue**, teams wait on a lock screen until you announce the code.
+3. Fill in the **final bar**. Each team gets its clue right after finishing its own route.
 4. Set the **number of teams**. **Stagger starts** gives every team a different first bar in the same loop. You can also reorder, add, or remove bars for each team by hand.
 5. Click **Create team links**, then send each team its link or show them its QR code. **Print host cheat sheet** prints every route with its answers.
 
