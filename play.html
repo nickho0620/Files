@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bar Hunt</title>
+  <meta name="theme-color" content="#0e0c14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bar Hunt">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+  <style>
+    .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+    .timer { font: 600 0.9rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); padding: 8px 10px; border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
+    .dots { display: flex; gap: 6px; margin: 4px 0 22px; }
+    .dot { flex: 1; height: 6px; border-radius: 99px; background: var(--line); }
+    .dot.on { background: var(--amber); }
+    .dot.final { background: repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 10px); }
+    .dot.final.on { background: var(--pink); }
+    .clue-card { position: relative; overflow: hidden; }
+    .clue-card::after { content: ""; position: absolute; inset: 0 0 auto auto; width: 140px; height: 140px; background: radial-gradient(circle, rgba(255,181,71,0.18), transparent 70%); pointer-events: none; }
+    .clue-card.final::after { background: radial-gradient(circle, rgba(255,92,138,0.25), transparent 70%); }
+    .clue-text { font: 600 1.35rem/1.45 var(--display); white-space: pre-wrap; margin: 0; }
+    .hint { margin-top: 16px; padding: 12px 14px; border-radius: 12px; background: rgba(255,181,71,0.08); border: 1px dashed rgba(255,181,71,0.4); white-space: pre-wrap; }
+    .feedback { min-height: 1.5em; margin: 10px 0 0; text-align: center; font-weight: 600; }
+    .feedback.bad { color: var(--red); }
+    .big-emoji { font-size: 3.5rem; line-height: 1; margin-bottom: 8px; }
+    .found { font: 800 clamp(1.8rem, 8vw, 2.6rem)/1.05 var(--display); color: var(--amber); margin: 4px 0 14px; }
+    .msg { white-space: pre-wrap; text-align: left; }
+    .journey { list-style: none; padding: 0; margin: 0; }
+    .journey li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+    .journey li:first-child { border-top: 0; }
+    .journey .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .stat { font: 800 2.2rem/1 var(--display); }
+    .footer-links { margin-top: 28px; text-align: center; }
+    .linkish { background: none; border: 0; color: var(--muted); text-decoration: underline; font: inherit; font-size: 0.85rem; cursor: pointer; padding: 6px; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div id="app"><p class="muted center" style="margin-top:30vh">Loading your hunt…</p></div>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="js/core.js"></script>
+  <script src="js/play.js"></script>
+</body>
+</html>

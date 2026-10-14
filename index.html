@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bar Hunt</title>
+  <meta name="description" content="A bar-hopping scavenger hunt: solve the clue, find the bar, unlock the next one.">
+  <meta name="theme-color" content="#0e0c14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bar Hunt">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+  <style>
+    .hero { text-align: center; padding: 8vh 0 24px; }
+    .hero .logo { width: 88px; height: 88px; border-radius: 22px; margin-bottom: 18px; box-shadow: 0 10px 40px rgba(255, 181, 71, 0.25); }
+    .hero h1 span { color: var(--amber); }
+    .steps { counter-reset: s; list-style: none; padding: 0; margin: 0; }
+    .steps li { counter-increment: s; display: flex; gap: 12px; padding: 10px 0; }
+    .steps li::before { content: counter(s); flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--card-2); border: 1px solid var(--line); font-weight: 700; color: var(--amber); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="hero">
+      <img class="logo" src="icons/icon-192.png" alt="">
+      <h1>Bar <span>Hunt</span></h1>
+      <p class="muted">Solve the clue. Find the bar. Unlock the next one.</p>
+    </div>
+
+    <div class="card hidden" id="resume">
+      <div class="eyebrow">Welcome back</div>
+      <h2 id="resume-team"></h2>
+      <p class="muted small" id="resume-title"></p>
+      <a class="btn primary block" id="resume-link" href="#">Continue your hunt</a>
+    </div>
+
+    <div class="card">
+      <h2>Playing?</h2>
+      <p class="muted small">Open the team link your host sent you. If you added this app to your home screen, paste the link here.</p>
+      <form id="join" class="stack" autocomplete="off">
+        <input type="url" id="join-url" placeholder="Paste your team link" aria-label="Team link">
+        <button class="btn primary block" type="submit">Join hunt</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Hosting?</h2>
+      <ol class="steps">
+        <li>Add your bars: a clue that leads to each one, and the answer teams enter when they arrive.</li>
+        <li>Pick how many teams and the order each team visits the bars, with every team starting somewhere different.</li>
+        <li>Send each team its link. After their route, everyone gets one final clue to the last bar.</li>
+      </ol>
+      <a class="btn block" href="host.html" style="margin-top:8px">Build a hunt</a>
+    </div>
+
+    <div class="card" id="install">
+      <h3>Put it on your home screen</h3>
+      <p class="muted small" id="install-text">iPhone: tap Share, then “Add to Home Screen”. Android: tap ⋮, then “Install app” or “Add to Home screen”.</p>
+      <button class="btn sm primary hidden" id="install-btn">Install app</button>
+    </div>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script>
+    (function () {
+      try {
+        const last = JSON.parse(localStorage.getItem('hunt:last'));
+        if (last && last.url) {
+          document.getElementById('resume').classList.remove('hidden');
+          document.getElementById('resume-team').textContent = last.team;
+          document.getElementById('resume-title').textContent = last.title || '';
+          document.getElementById('resume-link').href = last.url;
+        }
+      } catch (e) { /* ignore */ }
+
+      document.getElementById('join').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const v = document.getElementById('join-url').value.trim();
+        const i = v.indexOf('#');
+        if (i < 0 || v.length - i < 20) {
+          const t = document.getElementById('toast');
+          t.textContent = 'That doesn’t look like a team link';
+          t.classList.add('show');
+          setTimeout(function () { t.classList.remove('show'); }, 2200);
+          return;
+        }
+        location.href = 'play.html' + v.slice(i);
+      });
+
+      if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+        document.getElementById('install').classList.add('hidden');
+      }
+      let deferred;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferred = e;
+        document.getElementById('install-btn').classList.remove('hidden');
+      });
+      document.getElementById('install-btn').addEventListener('click', function () {
+        if (deferred) { deferred.prompt(); deferred = null; }
+      });
+
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+    })();
+  </script>
+</body>
+</html>

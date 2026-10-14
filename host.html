@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Hunt Builder</title>
+  <meta name="theme-color" content="#0e0c14">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+  <style>
+    .section-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin: 34px 0 12px; flex-wrap: wrap; }
+    .section-head h2 { margin: 0; }
+    .section-head p { margin: 4px 0 0; }
+    .step-num { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--amber); color: var(--amber-ink); font: 800 0.9rem/1 var(--body); margin-right: 8px; vertical-align: 2px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+    .bar-card { border-left: 4px solid var(--amber); }
+    .bar-card.final { border-left-color: var(--pink); }
+    .bar-card .head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .bar-card .head .tag { font: 700 0.75rem/1 var(--body); letter-spacing: 0.1em; text-transform: uppercase; color: var(--amber); white-space: nowrap; }
+    .bar-card.final .head .tag { color: var(--pink); }
+    .bar-card .head input { font-weight: 700; }
+    .team-card .route { list-style: none; margin: 10px 0; padding: 0; counter-reset: stop; }
+    .team-card .route li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 6px; counter-increment: stop; }
+    .team-card .route li::before { content: counter(stop); display: inline-grid; place-items: center; min-width: 26px; height: 26px; border-radius: 50%; background: var(--card-2); border: 1px solid var(--line); font-weight: 700; font-size: 0.85rem; }
+    .team-card .route li:first-child::before { background: var(--amber); color: var(--amber-ink); border-color: var(--amber); }
+    .team-card .route li.final-stop { border-style: dashed; color: var(--muted); }
+    .team-card .route li.final-stop::before { content: "★"; background: var(--pink); color: #2b0010; border-color: var(--pink); }
+    .team-card .route .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .warn { background: rgba(255, 107, 107, 0.08); border: 1px solid rgba(255, 107, 107, 0.35); color: #ffc2c2; border-radius: 12px; padding: 10px 14px; font-size: 0.9rem; }
+    .warn ul { margin: 0; padding-left: 18px; }
+    .ok { background: rgba(79, 214, 156, 0.08); border: 1px solid rgba(79, 214, 156, 0.35); color: #b8f3d8; border-radius: 12px; padding: 10px 14px; font-size: 0.9rem; }
+    .link-card .url { font: 0.8rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); word-break: break-all; max-height: 3.6em; overflow: hidden; margin: 8px 0 12px; }
+    .qr { background: #fff; border-radius: 12px; padding: 12px; display: inline-block; margin-top: 12px; }
+    .qr img, .qr svg { display: block; width: 220px; height: 220px; image-rendering: pixelated; }
+    .toolbar { position: sticky; top: 0; z-index: 10; background: rgba(14, 12, 20, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+    .toolbar .inner { max-width: 880px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .toolbar .brand { font: 800 1.1rem/1 var(--display); margin-right: auto; text-decoration: none; color: var(--text); }
+    .check-row { display: flex; gap: 12px; align-items: flex-start; }
+    .check-row input { margin-top: 2px; flex: none; }
+    .stale { display: none; }
+    .links-stale .stale { display: block; }
+    @media print {
+      body { background: #fff; color: #000; }
+      .toolbar, .no-print { display: none !important; }
+      .card { background: #fff; border-color: #ccc; color: #000; }
+      .print-only { display: block !important; }
+    }
+    .print-only { display: none; }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <div class="inner">
+      <a class="brand" href="./">🍻 Hunt Builder</a>
+      <button class="btn sm" id="export-btn" title="Download a backup of this hunt">Save file</button>
+      <label class="btn sm" title="Load a hunt file">Load file<input type="file" id="import-input" accept="application/json,.json" hidden></label>
+      <button class="btn sm danger" id="new-btn">New hunt</button>
+    </div>
+  </div>
+
+  <main class="wrap wide">
+    <div class="no-print">
+      <div class="eyebrow" style="margin-top:12px">Host</div>
+      <h1>Build your hunt</h1>
+      <p class="muted">Everything saves automatically in this browser. Answers are case-insensitive, and spaces, punctuation, and a leading “The” are ignored, so “the rusty nail!” matches “Rusty Nail”. Separate multiple accepted answers with commas.</p>
+
+      <div class="card">
+        <label class="field"><span>Hunt name</span><input type="text" id="title" placeholder="Saturday Bar Hunt"></label>
+      </div>
+
+      <div class="section-head">
+        <div>
+          <h2><span class="step-num">1</span>Bars</h2>
+          <p class="muted small">The bars teams hunt for before the finale. Each bar's clue leads teams <em>to</em> it; its answer is what they enter once they arrive.</p>
+        </div>
+        <button class="btn sm" id="add-bar">+ Add bar</button>
+      </div>
+      <div id="bars"></div>
+
+      <div class="section-head">
+        <div>
+          <h2><span class="step-num">2</span>Final bar</h2>
+          <p class="muted small">Every team gets this clue after finishing their route.</p>
+        </div>
+      </div>
+      <div id="final"></div>
+
+      <div class="section-head">
+        <div>
+          <h2><span class="step-num">3</span>Teams &amp; routes</h2>
+          <p class="muted small">Pick how many teams, then set each team's order. “Stagger starts” puts every team at a different first bar, following the same loop.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="grid2">
+          <label class="field"><span>Number of teams</span><input type="number" id="team-count" min="1" max="30" inputmode="numeric"></label>
+          <label class="field"><span>Bars per team (before the final)</span><input type="number" id="stops-per-team" min="1" inputmode="numeric"></label>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn sm primary" id="stagger">Stagger starts</button>
+          <button class="btn sm" id="shuffle">Shuffle routes</button>
+          <span class="muted small">Overwrites every team's route.</span>
+        </div>
+      </div>
+      <div id="teams" style="margin-top:16px"></div>
+
+      <div class="section-head">
+        <div>
+          <h2><span class="step-num">4</span>Send links</h2>
+          <p class="muted small">Each team gets its own link. Send it in your group chat or let them scan the QR code. If you change the hunt, make new links and resend them.</p>
+        </div>
+      </div>
+      <div id="warnings"></div>
+      <div class="row" style="margin:12px 0">
+        <button class="btn primary" id="generate">Create team links</button>
+        <button class="btn" id="print-btn">Print host cheat sheet</button>
+      </div>
+      <div id="links-wrap">
+        <div class="warn stale" style="margin-bottom:12px">You've changed the hunt since making these links. Create them again before sending.</div>
+        <div id="links"></div>
+      </div>
+    </div>
+
+    <div class="print-only" id="cheat"></div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/host.js"></script>
+</body>
+</html>
