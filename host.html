@@ -17,8 +17,8 @@
     .section-head h2 { margin: 0; }
     .section-head p { margin: 4px 0 0; }
     .step-num { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--amber); color: var(--amber-ink); font: 800 0.9rem/1 var(--body); margin-right: 8px; vertical-align: 2px; }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+    .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    @media (max-width: 640px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
     .bar-card { border-left: 4px solid var(--amber); }
     .bar-card.final { border-left-color: var(--pink); }
     .bar-card .head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
