@@ -18,6 +18,8 @@
       bars,
       final: { name: '', clue: '', hint: '', answers: '', msg: '' },
       stopsPerTeam: bars.length,
+      geoRadiusFt: 330,
+      backupCode: '',
       teams: [1, 2, 3].map((n) => ({ name: 'Team ' + n, route: [] })),
     };
     stagger(s);
@@ -99,7 +101,32 @@
           ${f('hint', 'Hint (optional)', 'It’s on Main Street')}
         </div>
         ${f('msg', 'Message when they arrive (optional)', isFinal ? 'You made it! First round is on the host.' : 'Order the house special and take a team photo.', 'area')}
+        <div>
+          <div class="loc-row">
+            ${f('loc', 'Location for check-in (optional)', '42.3613, -71.0572 or a Google Maps link')}
+            <button class="btn sm" data-act="here" data-bar="${key}" type="button">📍 Use my location</button>
+          </div>
+          <div class="loc-status" data-loc-status="${key}">${locStatus(bar.loc)}</div>
+        </div>
       </div>`;
+  }
+
+  function locStatus(text) {
+    if (!String(text || '').trim()) return '<span class="muted">Leave blank to only check the answer here.</span>';
+    const loc = Hunt.parseLoc(text);
+    if (!loc) return '<span class="bad">Couldn’t read that. Paste numbers like 42.3613, -71.0572.</span>';
+    return `<span class="good">✓ ${loc[0]}, ${loc[1]}</span> · <a href="https://www.google.com/maps?q=${loc[0]},${loc[1]}" target="_blank" rel="noopener">Check on map</a>`;
+  }
+
+  function updateLocStatus(key) {
+    const bar = key === 'final' ? state.final : barById(key);
+    const el = document.querySelector(`[data-loc-status="${key}"]`);
+    if (bar && el) el.innerHTML = locStatus(bar.loc);
+  }
+
+  function renderGeo() {
+    $('geo-radius').value = state.geoRadiusFt || 330;
+    $('backup-code').value = state.backupCode || '';
   }
 
   function renderBars() {
@@ -164,6 +191,13 @@
     });
     if (!state.final.name.trim()) errs.push('The final bar needs a name.');
     if (!state.final.clue.trim()) errs.push('The final bar needs a clue.');
+    const all = state.bars.concat([state.final]);
+    all.forEach((b, i) => {
+      if (String(b.loc || '').trim() && !Hunt.parseLoc(b.loc)) errs.push(`${b.name.trim() || (b === state.final ? 'The final bar' : `Bar ${i + 1}`)}: couldn’t read the location.`);
+    });
+    const located = all.filter((b) => Hunt.parseLoc(b.loc)).length;
+    if (located && located < all.length) notes.push(`${located} of ${all.length} bars have a location. At the others, teams only need the answer.`);
+    if (located && !Hunt.splitAnswers(state.backupCode).length) notes.push('Add a backup code in case a team’s GPS won’t work inside a bar.');
     if (!Hunt.splitAnswers(state.final.answers).length) notes.push('The final bar has no answer, so teams will tap “We made it!” when they arrive.');
 
     const names = new Map();
@@ -204,6 +238,7 @@
 
   function renderAll() {
     $('title').value = state.title;
+    renderGeo();
     renderBars();
     renderFinal();
     renderTeams();
@@ -236,7 +271,7 @@
       for (let i = 0; i < state.teams.length; i++) {
         const team = state.teams[i];
         const route = team.route.map(barById);
-        const data = await Hunt.buildTeam(state, { name: team.name.trim() || `Team ${i + 1}` }, route, state.final);
+        const data = await Hunt.buildTeam({ ...state, geoRadius: Math.round((parseInt(state.geoRadiusFt, 10) || 330) / 3.281) }, { name: team.name.trim() || `Team ${i + 1}` }, route, state.final);
         out.push({ name: team.name.trim() || `Team ${i + 1}`, url: base.href + '#' + data, start: barLabel(route[0]) });
       }
     } catch (e) {
@@ -291,6 +326,7 @@
     }).join('');
     $('cheat').innerHTML = `
       <h1>${esc(state.title || 'Bar Hunt')}: host sheet</h1>
+      ${state.backupCode ? `<p><strong>GPS backup code:</strong> ${esc(state.backupCode)}</p>` : ''}
       ${rows}`;
   }
 
@@ -303,9 +339,16 @@
       if (!bar) return;
       bar[t.dataset.field] = t.value;
       if (t.dataset.field === 'name') renderTeams();
+      if (t.dataset.field === 'loc') updateLocStatus(t.dataset.bar);
       changed();
     } else if (t.dataset.teamName != null) {
       state.teams[+t.dataset.teamName].name = t.value;
+      changed();
+    } else if (t.id === 'geo-radius') {
+      state.geoRadiusFt = t.value;
+      changed();
+    } else if (t.id === 'backup-code') {
+      state.backupCode = t.value;
       changed();
     } else if (t.id === 'title') {
       state.title = t.value;
@@ -347,6 +390,30 @@
     if (!el || el.tagName === 'SELECT') return;
     const ti = +el.dataset.team, si = +el.dataset.stop;
     switch (el.dataset.act) {
+      case 'here': {
+        const key = el.dataset.bar;
+        if (!navigator.geolocation) { toast('This browser can’t share location'); break; }
+        el.disabled = true;
+        el.textContent = 'Finding you…';
+        navigator.geolocation.getCurrentPosition((pos) => {
+          const bar = key === 'final' ? state.final : barById(key);
+          if (bar) {
+            bar.loc = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+            const input = document.querySelector(`[data-bar="${key}"][data-field="loc"]`);
+            if (input) input.value = bar.loc;
+            updateLocStatus(key);
+            changed();
+            toast(`Location saved (within about ${Math.round(pos.coords.accuracy * 3.281)} ft)`);
+          }
+          el.disabled = false;
+          el.textContent = '📍 Use my location';
+        }, () => {
+          toast('Couldn’t get your location. Check location permissions.');
+          el.disabled = false;
+          el.textContent = '📍 Use my location';
+        }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+        break;
+      }
       case 'remove-bar': {
         const bar = barById(el.dataset.id);
         if ((bar.name || bar.clue || bar.answers) && !confirm(`Remove ${barLabel(bar)}?`)) return;

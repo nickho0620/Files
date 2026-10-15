@@ -108,28 +108,60 @@
     throw new Error('That link does not look like a hunt link.');
   }
 
+  // "42.3601, -71.0550", or a Google Maps link containing one -> [lat, lng].
+  function parseLoc(s) {
+    const str = String(s || '').trim();
+    if (!str) return null;
+    const m = str.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
+      || str.match(/@(-?\d+\.\d+),\s*(-?\d+\.\d+)/)
+      || str.match(/[?&](?:q|ll|query|center)=(-?\d+(?:\.\d+)?)(?:,|%2C)\s*(-?\d+(?:\.\d+)?)/i)
+      || str.match(/(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)/);
+    if (!m) return null;
+    const lat = +m[1], lng = +m[2];
+    if (!(Math.abs(lat) <= 90 && Math.abs(lng) <= 180)) return null;
+    return [Math.round(lat * 1e6) / 1e6, Math.round(lng * 1e6) / 1e6];
+  }
+
+  // Straight-line meters between two [lat, lng] points.
+  function distance(a, b) {
+    const R = 6371000, rad = Math.PI / 180;
+    const dLat = (b[0] - a[0]) * rad, dLng = (b[1] - a[1]) * rad;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * rad) * Math.cos(b[0] * rad) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+
   // Builds one team's link payload from the host's hunt definition.
   // route: ordered bar objects; final: the last bar, whose clue a team gets
-  // as soon as it finishes its own route.
+  // as soon as it finishes its own route. A bar's location rides inside its
+  // locked payload, so it is only revealed once the team has the answer.
   async function buildTeam(hunt, team, route, final) {
     const salt = randomBytes(16);
     const finalClue = { clue: final.clue, hint: final.hint || '', final: true };
     const finalAnswers = splitAnswers(final.answers);
+    const finalLoc = parseLoc(final.loc);
     const stops = [];
+    let geo = false;
 
     for (let i = 0; i < route.length; i++) {
       const bar = route[i];
       const payload = { bar: bar.name, msg: bar.msg || '' };
+      const loc = parseLoc(bar.loc);
+      if (loc) { payload.loc = loc; geo = true; }
       payload.next = i < route.length - 1
         ? { clue: route[i + 1].clue, hint: route[i + 1].hint || '' }
         : finalClue;
       stops.push(await seal(payload, splitAnswers(bar.answers), salt));
     }
+    if (finalLoc) geo = true;
     if (finalAnswers.length) {
-      stops.push(await seal({ bar: final.name, msg: final.msg || '', done: true }, finalAnswers, salt));
+      const payload = { bar: final.name, msg: final.msg || '', done: true };
+      if (finalLoc) payload.loc = finalLoc;
+      stops.push(await seal(payload, finalAnswers, salt));
+    } else if (finalLoc) {
+      finalClue.loc = finalLoc;
     }
 
-    return pack({
+    const data = {
       v: 1,
       title: hunt.title,
       team: team.name,
@@ -137,7 +169,13 @@
       salt: toB64(salt),
       first: { clue: route[0].clue, hint: route[0].hint || '' },
       stops,
-    });
+    };
+    if (geo) {
+      data.radius = Math.max(25, parseInt(hunt.geoRadius, 10) || 100);
+      const backup = splitAnswers(hunt.backupCode);
+      if (backup.length) data.backup = await seal({ ok: 1 }, backup, salt);
+    }
+    return pack(data);
   }
 
   function hashString(s) {
@@ -146,5 +184,5 @@
     return (h >>> 0).toString(36);
   }
 
-  root.Hunt = { normalize, splitAnswers, seal, open, pack, unpack, buildTeam, hashString, toB64, fromB64 };
+  root.Hunt = { normalize, splitAnswers, seal, open, pack, unpack, buildTeam, parseLoc, distance, hashString, toB64, fromB64 };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -66,6 +66,7 @@
     if (!state.startedAt) body = viewStart();
     else if (state.arrived) body = viewArrived();
     else if (state.done) body = viewDone();
+    else if (state.pending) body = viewLocate();
     else body = viewClue();
     app.innerHTML = header() + body + (state.startedAt && !state.done ? journey() + footer() : '');
     startTimer();
@@ -78,7 +79,8 @@
       <div class="card pop center">
         <div class="big-emoji">🍻</div>
         <h2>Ready, ${esc(hunt.team)}?</h2>
-        <p class="muted">Each clue leads to a bar. When you get there, enter the answer to unlock your next clue. You have ${hunt.total} bar${hunt.total === 1 ? '' : 's'} to find, then one final destination.</p>
+        <p class="muted">Each clue leads to a bar. When you get there, enter the answer${hunt.radius ? ' and check in with your location' : ''} to unlock your next clue. You have ${hunt.total} bar${hunt.total === 1 ? '' : 's'} to find, then one final destination.</p>
+        ${hunt.radius ? '<p class="muted small">When your phone asks to use your location, tap Allow.</p>' : ''}
         <button class="btn primary block" data-act="start">Reveal the first clue</button>
       </div>`;
   }
@@ -126,6 +128,74 @@
       </div>`;
   }
 
+  function viewLocate() {
+    const backup = hunt.backup ? `
+      <div class="card">
+        <h3>GPS not cooperating?</h3>
+        <p class="muted small">Ask your host for the backup code.</p>
+        <form id="backup-form" class="stack" autocomplete="off">
+          <input class="answer-input" name="code" type="text" placeholder="Backup code" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Backup code">
+          <button class="btn block" type="submit" data-label="Use backup code">Use backup code</button>
+        </form>
+        <p class="feedback" id="feedback" aria-live="polite"></p>
+      </div>` : '';
+    return `
+      <div class="card pop center">
+        <div class="big-emoji">📍</div>
+        <h2>Right answer!</h2>
+        <p class="muted">Now prove you're there. Your phone will check that you're at the bar.</p>
+        <button class="btn primary block" data-act="locate">Check my location</button>
+        <p class="feedback" id="geo-status" aria-live="polite"></p>
+      </div>
+      ${backup}`;
+  }
+
+  function fmtDistance(m) {
+    const ft = m * 3.281;
+    if (ft < 1000) return `${Math.round(ft / 10) * 10} feet`;
+    const mi = m / 1609.34;
+    return `${mi < 10 ? mi.toFixed(1) : Math.round(mi)} miles`;
+  }
+
+  function getPosition() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject({ code: 0 });
+      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+    });
+  }
+
+  async function checkLocation() {
+    const p = state.pending;
+    const btn = app.querySelector('[data-act=locate]');
+    const status = document.getElementById('geo-status');
+    if (!p || !btn) return;
+    btn.disabled = true;
+    btn.textContent = 'Finding you…';
+    status.className = 'feedback';
+    status.textContent = '';
+    try {
+      const pos = await getPosition();
+      const d = Hunt.distance([pos.coords.latitude, pos.coords.longitude], p.loc);
+      // Give back some of the phone's own uncertainty; GPS drifts indoors.
+      const slack = Math.min(pos.coords.accuracy || 0, 75);
+      if (d - slack <= hunt.radius) {
+        state.pending = null;
+        handleStop(p);
+        return;
+      }
+      status.textContent = `You're about ${fmtDistance(d)} away. Get to the bar and try again.`;
+    } catch (err) {
+      status.textContent = err.code === 1
+        ? 'Location is blocked. Allow location for this site in your browser settings, then try again.'
+        : err.code === 0
+          ? "This browser can't share location. Ask your host for the backup code."
+          : "Couldn't get a GPS fix. Step near a window or outside and try again.";
+    }
+    status.className = 'feedback bad';
+    btn.disabled = false;
+    btn.textContent = 'Try again';
+  }
+
   function viewDone() {
     const total = state.finishedAt - state.startedAt;
     const items = state.log.map((l, i) => `<li><span>${i === state.log.length - 1 && state.log.length > hunt.total ? '🏁' : i + 1 + '.'} ${esc(l.bar)}</span><span class="t">${fmtClock(l.at)}</span></li>`).join('');
@@ -156,7 +226,7 @@
       return;
     }
     btn.disabled = false;
-    btn.textContent = 'Check answer';
+    btn.textContent = btn.dataset.label || 'Check answer';
     fb.textContent = ['Not quite. Try again!', 'Nope, keep looking.', 'Not it. Check the clue again.'][Math.floor(Math.random() * 3)];
     fb.className = 'feedback bad';
     form.classList.remove('shake');
@@ -164,6 +234,16 @@
     form.classList.add('shake');
     if (navigator.vibrate) navigator.vibrate([40, 40, 40]);
     input.select();
+  }
+
+  // A right answer still needs a location check when the host set one.
+  function answered(p) {
+    if (!p.loc) return handleStop(p);
+    state.pending = p;
+    save();
+    render();
+    window.scrollTo(0, 0);
+    checkLocation();
   }
 
   function handleStop(p) {
@@ -187,7 +267,13 @@
   app.addEventListener('submit', (e) => {
     e.preventDefault();
     if (e.target.id === 'answer-form') {
-      submitAnswer(e.target, hunt.stops[state.step], handleStop);
+      submitAnswer(e.target, hunt.stops[state.step], answered);
+    } else if (e.target.id === 'backup-form') {
+      submitAnswer(e.target, hunt.backup, () => {
+        const p = state.pending;
+        state.pending = null;
+        handleStop(p);
+      });
     }
   });
 
@@ -197,7 +283,12 @@
     switch (act.dataset.act) {
       case 'start':
         state.startedAt = Date.now();
+        // Ask for location up front so the prompt isn't a surprise at the first bar.
+        if (hunt.radius && navigator.geolocation) navigator.geolocation.getCurrentPosition(() => {}, () => {}, { timeout: 10000 });
         break;
+      case 'locate':
+        checkLocation();
+        return;
       case 'hint':
         state.hintShown = true;
         break;
@@ -206,6 +297,7 @@
         window.scrollTo(0, 0);
         break;
       case 'finish': {
+        if (state.clue.loc) return answered({ bar: 'Final destination', msg: '', done: true, loc: state.clue.loc });
         const now = Date.now();
         state.log.push({ bar: 'Final destination', at: now });
         state.done = true;
@@ -224,7 +316,7 @@
   });
 
   function fresh() {
-    return { step: 0, clue: hunt.first, log: [], startedAt: null, finishedAt: null, arrived: null, done: false, hintShown: false };
+    return { step: 0, clue: hunt.first, log: [], startedAt: null, finishedAt: null, arrived: null, pending: null, done: false, hintShown: false };
   }
 
   function fail(msg) {

@@ -42,6 +42,11 @@
     .toolbar .inner { max-width: 880px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .toolbar .brand { font: 800 1.1rem/1 var(--display); margin-right: auto; text-decoration: none; color: var(--text); }
     .stale { display: none; }
+    .loc-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .loc-row .field { flex: 1 1 240px; min-width: 0; }
+    .loc-status { font-size: 0.8rem; margin-top: 6px; }
+    .loc-status .good { color: var(--green); }
+    .loc-status .bad { color: var(--red); }
     .links-stale .stale { display: block; }
     @media print {
       body { background: #fff; color: #000; }
@@ -91,7 +96,21 @@
 
       <div class="section-head">
         <div>
-          <h2><span class="step-num">3</span>Teams &amp; routes</h2>
+          <h2><span class="step-num">3</span>Location check-in</h2>
+          <p class="muted small">For any bar with a location, teams need the right answer <em>and</em> their phone has to be near the bar before the next clue unlocks.</p>
+        </div>
+      </div>
+      <div class="card stack">
+        <div class="grid2">
+          <label class="field"><span>Check-in distance (feet)</span><input type="number" id="geo-radius" min="80" step="10" inputmode="numeric"></label>
+          <label class="field"><span>GPS backup code (optional)</span><input type="text" id="backup-code" placeholder="e.g. cheers"></label>
+        </div>
+        <p class="muted small" style="margin:0">GPS is often off by 100+ feet indoors, so about 330 ft works well. If a team's phone won't cooperate, text them the backup code to skip the location check. To get a bar's location, open Google Maps, press and hold (phone) or right-click (computer) on the bar, and copy the numbers. Or stand in the bar while scouting and tap “Use my location”.</p>
+      </div>
+
+      <div class="section-head">
+        <div>
+          <h2><span class="step-num">4</span>Teams &amp; routes</h2>
           <p class="muted small">Pick how many teams, then set each team's order. “Stagger starts” puts every team at a different first bar, following the same loop.</p>
         </div>
       </div>
@@ -110,7 +129,7 @@
 
       <div class="section-head">
         <div>
-          <h2><span class="step-num">4</span>Send links</h2>
+          <h2><span class="step-num">5</span>Send links</h2>
           <p class="muted small">Each team gets its own link. Send it in your group chat or let them scan the QR code. If you change the hunt, make new links and resend them.</p>
         </div>
       </div>

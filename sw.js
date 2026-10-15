@@ -1,6 +1,6 @@
 // Caches the app so clues still load with spotty bar Wi-Fi.
 // Bump VERSION whenever you change any file so phones pick up the update.
-const VERSION = 'bar-hunt-v3';
+const VERSION = 'bar-hunt-v4';
 const SHELL = [
   './', 'index.html', 'play.html', 'host.html',
   'css/app.css', 'js/core.js', 'js/play.js', 'js/host.js',
