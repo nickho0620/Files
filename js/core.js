@@ -132,8 +132,9 @@
 
   // Builds one team's link payload from the host's hunt definition.
   // route: ordered bar objects; final: the last bar, whose clue a team gets
-  // as soon as it finishes its own route. A bar's location rides inside its
-  // locked payload, so it is only revealed once the team has the answer.
+  // as soon as it finishes its own route. A bar's location and its GPS
+  // backup code ride inside its locked payload, so they only exist once the
+  // team has that bar's answer, and a backup code only works at its own bar.
   async function buildTeam(hunt, team, route, final) {
     const salt = randomBytes(16);
     const finalClue = { clue: final.clue, hint: final.hint || '', final: true };
@@ -146,19 +147,29 @@
       const bar = route[i];
       const payload = { bar: bar.name, msg: bar.msg || '' };
       const loc = parseLoc(bar.loc);
-      if (loc) { payload.loc = loc; geo = true; }
+      if (loc) {
+        payload.loc = loc;
+        geo = true;
+        const backup = splitAnswers(bar.backup);
+        if (backup.length) payload.backup = await seal({ ok: 1 }, backup, salt);
+      }
       payload.next = i < route.length - 1
         ? { clue: route[i + 1].clue, hint: route[i + 1].hint || '' }
         : finalClue;
       stops.push(await seal(payload, splitAnswers(bar.answers), salt));
     }
+    const finalBackup = finalLoc && splitAnswers(final.backup).length
+      ? await seal({ ok: 1 }, splitAnswers(final.backup), salt)
+      : null;
     if (finalLoc) geo = true;
     if (finalAnswers.length) {
       const payload = { bar: final.name, msg: final.msg || '', done: true };
       if (finalLoc) payload.loc = finalLoc;
+      if (finalBackup) payload.backup = finalBackup;
       stops.push(await seal(payload, finalAnswers, salt));
     } else if (finalLoc) {
       finalClue.loc = finalLoc;
+      if (finalBackup) finalClue.backup = finalBackup;
     }
 
     const data = {
@@ -170,11 +181,7 @@
       first: { clue: route[0].clue, hint: route[0].hint || '' },
       stops,
     };
-    if (geo) {
-      data.radius = Math.max(25, parseInt(hunt.geoRadius, 10) || 100);
-      const backup = splitAnswers(hunt.backupCode);
-      if (backup.length) data.backup = await seal({ ok: 1 }, backup, salt);
-    }
+    if (geo) data.radius = Math.max(25, parseInt(hunt.geoRadius, 10) || 100);
     return pack(data);
   }
 

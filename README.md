@@ -18,7 +18,7 @@ GitHub Pages on a free account only works for **public** repos. That's fine here
 1. Open `…/host.html` (or tap **Build a hunt** on the home page).
 2. Add your bars. For each bar, write the **clue that leads to it** and the **answer(s)** teams enter once they're there. The answer can be the bar's name or something they have to find inside, like the word on the chalkboard. List alternate answers with commas.
 3. Fill in the **final bar**. Each team gets its clue right after finishing its own route.
-4. Optional: add a **location** to any bar. Teams then need the right answer *and* their phone has to be near the bar (330 ft by default) before the next clue unlocks. Paste the coordinates from Google Maps (press and hold on the bar, then copy the numbers), or stand in the bar while scouting and tap **Use my location**. Set a **GPS backup code** you can text a team if their phone won't get a fix indoors.
+4. Optional: add a **location** to any bar. Teams then need the right answer *and* their phone has to be near the bar (330 ft by default) before the next clue unlocks. Paste the coordinates from Google Maps (press and hold on the bar, then copy the numbers), or stand in the bar while scouting and tap **Use my location**. Give each of those bars its own **GPS backup code** that you can text a team if their phone won't get a fix there. A code only works at its own bar.
 5. Set the **number of teams**. **Stagger starts** gives every team a different first bar in the same loop. You can also reorder, add, or remove bars for each team by hand.
 6. Click **Create team links**, then send each team its link or show them its QR code. **Print host cheat sheet** prints every route with its answers.
 

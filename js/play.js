@@ -128,11 +128,16 @@
       </div>`;
   }
 
+  // Links made before backup codes went per-bar carry one shared code.
+  function backupFor(p) {
+    return (p && p.backup) || hunt.backup || null;
+  }
+
   function viewLocate() {
-    const backup = hunt.backup ? `
+    const backup = backupFor(state.pending) ? `
       <div class="card">
         <h3>GPS not cooperating?</h3>
-        <p class="muted small">Ask your host for the backup code.</p>
+        <p class="muted small">Ask your host for this bar's backup code.</p>
         <form id="backup-form" class="stack" autocomplete="off">
           <input class="answer-input" name="code" type="text" placeholder="Backup code" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Backup code">
           <button class="btn block" type="submit" data-label="Use backup code">Use backup code</button>
@@ -188,7 +193,7 @@
       status.textContent = err.code === 1
         ? 'Location is blocked. Allow location for this site in your browser settings, then try again.'
         : err.code === 0
-          ? "This browser can't share location. Ask your host for the backup code."
+          ? `This browser can't share location.${backupFor(p) ? " Ask your host for this bar's backup code." : ''}`
           : "Couldn't get a GPS fix. Step near a window or outside and try again.";
     }
     status.className = 'feedback bad';
@@ -269,7 +274,7 @@
     if (e.target.id === 'answer-form') {
       submitAnswer(e.target, hunt.stops[state.step], answered);
     } else if (e.target.id === 'backup-form') {
-      submitAnswer(e.target, hunt.backup, () => {
+      submitAnswer(e.target, backupFor(state.pending), () => {
         const p = state.pending;
         state.pending = null;
         handleStop(p);
@@ -297,7 +302,7 @@
         window.scrollTo(0, 0);
         break;
       case 'finish': {
-        if (state.clue.loc) return answered({ bar: 'Final destination', msg: '', done: true, loc: state.clue.loc });
+        if (state.clue.loc) return answered({ bar: 'Final destination', msg: '', done: true, loc: state.clue.loc, backup: state.clue.backup });
         const now = Date.now();
         state.log.push({ bar: 'Final destination', at: now });
         state.done = true;

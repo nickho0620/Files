@@ -19,7 +19,6 @@
       final: { name: '', clue: '', hint: '', answers: '', msg: '' },
       stopsPerTeam: bars.length,
       geoRadiusFt: 330,
-      backupCode: '',
       teams: [1, 2, 3].map((n) => ({ name: 'Team ' + n, route: [] })),
     };
     stagger(s);
@@ -33,8 +32,20 @@
   function load() {
     try {
       const s = JSON.parse(localStorage.getItem(STORE));
-      return valid(s) ? s : null;
+      return valid(s) ? upgrade(s) : null;
     } catch (e) { return null; }
+  }
+
+  // Hunts saved before backup codes went per-bar had one shared code: give it
+  // to every bar that has a location so those hunts keep working as before.
+  function upgrade(s) {
+    if (s.backupCode) {
+      s.bars.concat([s.final]).forEach((b) => {
+        if (String(b.loc || '').trim() && !b.backup) b.backup = s.backupCode;
+      });
+    }
+    delete s.backupCode;
+    return s;
   }
 
   function valid(s) {
@@ -107,6 +118,9 @@
             <button class="btn sm" data-act="here" data-bar="${key}" type="button">📍 Use my location</button>
           </div>
           <div class="loc-status" data-loc-status="${key}">${locStatus(bar.loc)}</div>
+          <div class="backup-field ${String(bar.loc || '').trim() ? '' : 'hidden'}" data-backup-field="${key}" style="margin-top:12px">
+            ${f('backup', 'GPS backup code for this bar (optional)', 'e.g. walrus')}
+          </div>
         </div>
       </div>`;
   }
@@ -122,11 +136,12 @@
     const bar = key === 'final' ? state.final : barById(key);
     const el = document.querySelector(`[data-loc-status="${key}"]`);
     if (bar && el) el.innerHTML = locStatus(bar.loc);
+    const backup = document.querySelector(`[data-backup-field="${key}"]`);
+    if (bar && backup) backup.classList.toggle('hidden', !String(bar.loc || '').trim());
   }
 
   function renderGeo() {
     $('geo-radius').value = state.geoRadiusFt || 330;
-    $('backup-code').value = state.backupCode || '';
   }
 
   function renderBars() {
@@ -197,7 +212,15 @@
     });
     const located = all.filter((b) => Hunt.parseLoc(b.loc)).length;
     if (located && located < all.length) notes.push(`${located} of ${all.length} bars have a location. At the others, teams only need the answer.`);
-    if (located && !Hunt.splitAnswers(state.backupCode).length) notes.push('Add a backup code in case a team’s GPS won’t work inside a bar.');
+    const label = (b) => b.name.trim() || (b === state.final ? 'the final bar' : `Bar ${state.bars.indexOf(b) + 1}`);
+    const noBackup = all.filter((b) => Hunt.parseLoc(b.loc) && !Hunt.splitAnswers(b.backup).length);
+    if (noBackup.length) notes.push(`No GPS backup code for ${noBackup.map(label).join(', ')}. If a team’s GPS won’t work there, they’ll be stuck.`);
+    const byCode = new Map();
+    all.filter((b) => Hunt.parseLoc(b.loc)).forEach((b) => Hunt.splitAnswers(b.backup).forEach((c) => {
+      if (!byCode.has(c)) byCode.set(c, []);
+      byCode.get(c).push(label(b));
+    }));
+    byCode.forEach((bars) => { if (bars.length > 1) notes.push(`${bars.join(' & ')} share the same backup code.`); });
     if (!Hunt.splitAnswers(state.final.answers).length) notes.push('The final bar has no answer, so teams will tap “We made it!” when they arrive.');
 
     const names = new Map();
@@ -316,17 +339,20 @@
     toast('Link copied');
   }
 
+  function backupNote(b) {
+    return b && Hunt.parseLoc(b.loc) && String(b.backup || '').trim() ? ` · GPS backup “${esc(b.backup)}”` : '';
+  }
+
   function buildCheatSheet() {
     const rows = state.teams.map((t, i) => {
       const stops = t.route.map((id, si) => {
         const b = barById(id);
-        return `<li>${si + 1}. <strong>${esc(barLabel(b))}</strong>: answer “${esc(b ? b.answers : '')}”</li>`;
+        return `<li>${si + 1}. <strong>${esc(barLabel(b))}</strong>: answer “${esc(b ? b.answers : '')}”${backupNote(b)}</li>`;
       }).join('');
-      return `<div class="card" style="break-inside:avoid;margin-bottom:12px"><h3>${esc(t.name || 'Team ' + (i + 1))}</h3><ul style="list-style:none;padding:0;margin:0">${stops}<li>★ <strong>${esc(state.final.name)}</strong>${state.final.answers ? `: answer “${esc(state.final.answers)}”` : ''}</li></ul></div>`;
+      return `<div class="card" style="break-inside:avoid;margin-bottom:12px"><h3>${esc(t.name || 'Team ' + (i + 1))}</h3><ul style="list-style:none;padding:0;margin:0">${stops}<li>★ <strong>${esc(state.final.name)}</strong>${state.final.answers ? `: answer “${esc(state.final.answers)}”` : ''}${backupNote(state.final)}</li></ul></div>`;
     }).join('');
     $('cheat').innerHTML = `
       <h1>${esc(state.title || 'Bar Hunt')}: host sheet</h1>
-      ${state.backupCode ? `<p><strong>GPS backup code:</strong> ${esc(state.backupCode)}</p>` : ''}
       ${rows}`;
   }
 
@@ -346,9 +372,6 @@
       changed();
     } else if (t.id === 'geo-radius') {
       state.geoRadiusFt = t.value;
-      changed();
-    } else if (t.id === 'backup-code') {
-      state.backupCode = t.value;
       changed();
     } else if (t.id === 'title') {
       state.title = t.value;
@@ -491,7 +514,7 @@
     try {
       const s = JSON.parse(await file.text());
       if (!valid(s)) throw new Error('bad file');
-      state = s;
+      state = upgrade(s);
       clampStops(state);
       save();
       renderAll();
