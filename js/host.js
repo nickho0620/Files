@@ -52,12 +52,12 @@
     return s && Array.isArray(s.bars) && Array.isArray(s.teams) && s.final && typeof s.final === 'object';
   }
 
-  function toast(msg) {
+  function toast(msg, ms) {
     const el = $('toast');
     el.textContent = msg;
     el.classList.add('show');
     clearTimeout(toast.t);
-    toast.t = setTimeout(() => el.classList.remove('show'), 2200);
+    toast.t = setTimeout(() => el.classList.remove('show'), ms || 2200);
   }
 
   function barById(id) { return state.bars.find((b) => b.id === id); }
@@ -511,16 +511,25 @@
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
+    let s;
     try {
-      const s = JSON.parse(await file.text());
-      if (!valid(s)) throw new Error('bad file');
+      s = JSON.parse((await file.text()).replace(/^\uFEFF/, ''));
+    } catch (err) {
+      toast('Couldn’t read that file. If you opened or edited it in another app, load the original .json file instead.', 6000);
+      return;
+    }
+    if (!valid(s)) {
+      toast('That file isn’t a hunt saved from this page.', 5000);
+      return;
+    }
+    try {
       state = upgrade(s);
       clampStops(state);
       save();
       renderAll();
       toast('Hunt loaded');
     } catch (err) {
-      toast('That file is not a hunt file');
+      toast('Couldn’t load that hunt. Refresh this page and try again.', 6000);
     }
   });
 
