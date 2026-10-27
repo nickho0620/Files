@@ -273,29 +273,107 @@
   function qrFor(url) {
     if (typeof qrcode === 'undefined') return '<p class="muted small">QR codes need an internet connection to load.</p>';
     try {
-      const qr = qrcode(0, 'L');
+      const qr = qrcode(0, 'M');
       qr.addData(url, 'Byte');
       qr.make();
-      return `<div class="qr"><img alt="QR code" src="${qr.createDataURL(4, 2)}"></div>`;
+      return `<div class="qr"><img alt="QR code" src="${qr.createDataURL(6, 2)}"></div>
+        <p class="muted small">Scans to this team's short link. It works once the hunt file is on your website (see below).</p>`;
     } catch (e) {
-      return '<p class="muted small">This link is too long for a QR code. Text or AirDrop the link instead (shorter clues help).</p>';
+      return '<p class="muted small">Couldn’t make a QR code for this link.</p>';
     }
+  }
+
+  // ---------- Short links ----------
+  // One file on the site holds every team's hunt, each locked with that
+  // team's own key. The id and keys are kept with the hunt, so short links
+  // and QR codes stay the same when the hunt is edited and uploaded again.
+  let published = null; // { name, text, rev } for the file made with the latest links
+  let pollTimer = null;
+
+  function ensurePublishKeys() {
+    if (!state.publish || !state.publish.id) state.publish = { id: Hunt.randomId(6), keys: [] };
+    while (state.publish.keys.length < state.teams.length) state.publish.keys.push(Hunt.randomId(16));
+    save();
+  }
+
+  function huntRev() {
+    const { publish, ...rest } = state;
+    return Hunt.hashString(JSON.stringify(rest));
+  }
+
+  function repoUrl() {
+    const user = location.hostname.endsWith('.github.io') ? location.hostname.split('.')[0] : '';
+    const repo = location.pathname.split('/').filter(Boolean)[0];
+    return user && repo && !repo.includes('.') ? `https://github.com/${user}/${repo}` : '';
+  }
+
+  function renderPublish() {
+    const repo = repoUrl();
+    $('publish').innerHTML = `
+      <div class="card stack">
+        <h3>Short links &amp; QR codes</h3>
+        <p class="muted small" style="margin:0">The links above work right away but are too long for QR codes. For short links, put this hunt's file on your website once:</p>
+        <ol class="small" style="margin:0;padding-left:20px">
+          <li>Download the hunt file: <button class="btn sm primary" data-act="download-hunt">Download ${esc(published.name)}</button></li>
+          <li>${repo ? `Open <a href="${repo}" target="_blank" rel="noopener">your repo on GitHub</a>` : 'Open your repo on GitHub'}, tap <strong>Add file → Upload files</strong>, add the file, and tap <strong>Commit changes</strong>.</li>
+          <li>Wait a minute or two for the site to update.</li>
+        </ol>
+        <div class="row"><span id="publish-status" class="small"></span><button class="btn sm" data-act="check-publish">Check again</button></div>
+        <p class="muted small" style="margin:0">Changed the hunt later? Create the links again and upload the new file over the old one. Short links and QR codes stay the same. Use <strong>Save file</strong> after creating links so they keep working if you load this hunt again.</p>
+      </div>`;
+  }
+
+  async function checkPublished() {
+    const el = $('publish-status');
+    if (!published || !el) return;
+    let text = '⏳ Not on the website yet.', cls = 'muted', live = false;
+    try {
+      const res = await fetch(`${published.name}?t=${Date.now()}`, { cache: 'no-store' });
+      if (res.ok) {
+        const file = await res.json();
+        live = file.rev === published.rev;
+        text = live ? '✓ Live. Short links and QR codes work.' : '⚠ The file on the website is an older version. Upload the new one.';
+        cls = live ? 'good' : 'bad';
+      }
+    } catch (e) { /* not uploaded yet, or offline */ }
+    el.textContent = text;
+    el.className = 'small ' + cls;
+    if (live) stopPolling();
+  }
+
+  function startPolling() {
+    stopPolling();
+    const until = Date.now() + 10 * 60 * 1000;
+    pollTimer = setInterval(() => (Date.now() > until ? stopPolling() : checkPublished()), 15000);
+  }
+
+  function stopPolling() {
+    clearInterval(pollTimer);
+    pollTimer = null;
   }
 
   async function generate() {
     const btn = $('generate');
     btn.disabled = true;
     btn.textContent = 'Locking clues…';
+    // Hide the old upload panel so its file can't be downloaded mid-update.
+    published = null;
+    stopPolling();
+    $('publish').innerHTML = '';
     const base = new URL('play.html', location.href);
     base.hash = '';
     base.search = '';
     const out = [];
+    const blobs = [];
+    ensurePublishKeys();
+    const { id, keys } = state.publish;
     try {
       for (let i = 0; i < state.teams.length; i++) {
         const team = state.teams[i];
         const route = team.route.map(barById);
         const data = await Hunt.buildTeam({ ...state, geoRadius: Math.round((parseInt(state.geoRadiusFt, 10) || 330) / 3.281) }, { name: team.name.trim() || `Team ${i + 1}` }, route, state.final);
-        out.push({ name: team.name.trim() || `Team ${i + 1}`, url: base.href + '#' + data, start: barLabel(route[0]) });
+        blobs.push(await Hunt.lockTeam(data, keys[i]));
+        out.push({ name: team.name.trim() || `Team ${i + 1}`, url: base.href + '#' + data, short: `${base.href}#s.${id}.${i}.${keys[i]}`, start: barLabel(route[0]) });
       }
     } catch (e) {
       toast('Something went wrong: ' + e.message);
@@ -315,8 +393,15 @@
           <a class="btn sm" href="${esc(l.url)}" target="_blank" rel="noopener">Test</a>
           <button class="btn sm" data-act="qr" data-i="${i}">QR code</button>
         </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn sm" data-act="copy-short" data-i="${i}">Copy short link</button>
+        </div>
         <div class="qr-slot"></div>
       </div>`).join('')}</div>`;
+    const rev = huntRev();
+    published = { name: `hunt-${id}.json`, rev, text: JSON.stringify({ v: 1, rev, teams: blobs }) + '\n' };
+    renderPublish();
+    checkPublished();
     $('links').dataset.links = JSON.stringify(out);
     linksMade = true;
     $('links-wrap').classList.remove('links-stale');
@@ -462,15 +547,29 @@
         renderTeams();
         changed();
         break;
+      case 'download-hunt': {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([published.text], { type: 'application/json' }));
+        a.download = published.name;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        startPolling();
+        break;
+      }
+      case 'check-publish':
+        checkPublished();
+        break;
       case 'copy':
+      case 'copy-short':
       case 'share':
       case 'qr': {
         const link = JSON.parse($('links').dataset.links)[+el.dataset.i];
         if (el.dataset.act === 'copy') copy(link.url);
+        else if (el.dataset.act === 'copy-short') copy(link.short);
         else if (el.dataset.act === 'share') navigator.share({ title: `${state.title || 'Bar Hunt'}: ${link.name}`, text: `Your clues for ${state.title || 'the hunt'} (${link.name}):`, url: link.url }).catch(() => {});
         else {
           const slot = el.closest('.link-card').querySelector('.qr-slot');
-          slot.innerHTML = slot.innerHTML ? '' : qrFor(link.url);
+          slot.innerHTML = slot.innerHTML ? '' : qrFor(link.short);
         }
         break;
       }
@@ -539,6 +638,9 @@
     save();
     renderAll();
     $('links').innerHTML = '';
+    $('publish').innerHTML = '';
+    published = null;
+    stopPolling();
     linksMade = false;
     $('links-wrap').classList.remove('links-stale');
   });

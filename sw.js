@@ -1,6 +1,6 @@
 // Caches the app so clues still load with spotty bar Wi-Fi.
 // Bump VERSION whenever you change any file so phones pick up the update.
-const VERSION = 'bar-hunt-v6';
+const VERSION = 'bar-hunt-v7';
 const SHELL = [
   './', 'index.html', 'play.html', 'host.html',
   'css/app.css', 'js/core.js', 'js/play.js', 'js/host.js',
@@ -25,7 +25,7 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        if (res.ok && (res.type === 'basic' || res.type === 'cors')) {
+        if (res.ok && (res.type === 'basic' || res.type === 'cors') && !new URL(e.request.url).search) {
           const copy = res.clone();
           caches.open(VERSION).then((c) => c.put(e.request, copy));
         }

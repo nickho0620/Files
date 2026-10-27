@@ -185,11 +185,43 @@
     return pack(data);
   }
 
+  // Short links: every team's packed hunt is locked with its own random key
+  // and published together in one file on the site. The file is safe to make
+  // public; a team's link carries only the file id, its slot and its key.
+  async function teamKey(keyB64, usage) {
+    return crypto.subtle.importKey('raw', fromB64(keyB64), 'AES-GCM', false, [usage]);
+  }
+
+  async function lockTeam(packed, keyB64) {
+    const iv = randomBytes(12);
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await teamKey(keyB64, 'encrypt'), enc.encode(packed)));
+    const joined = new Uint8Array(iv.length + ct.length);
+    joined.set(iv);
+    joined.set(ct, iv.length);
+    return toB64(joined);
+  }
+
+  async function unlockTeam(blob, keyB64) {
+    const bytes = fromB64(blob);
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.subarray(0, 12) }, await teamKey(keyB64, 'decrypt'), bytes.subarray(12));
+    return dec.decode(plain);
+  }
+
+  function randomId(bytes) {
+    return toB64(randomBytes(bytes));
+  }
+
+  // "s.<file id>.<team slot>.<team key>" -> parts, or null for a long link.
+  function parseShort(hash) {
+    const m = /^s\.([A-Za-z0-9_-]{6,16})\.(\d{1,3})\.([A-Za-z0-9_-]{22})$/.exec(hash);
+    return m ? { id: m[1], slot: +m[2], key: m[3] } : null;
+  }
+
   function hashString(s) {
     let h = 5381;
     for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
     return (h >>> 0).toString(36);
   }
 
-  root.Hunt = { normalize, splitAnswers, seal, open, pack, unpack, buildTeam, parseLoc, distance, hashString, toB64, fromB64 };
+  root.Hunt = { normalize, splitAnswers, seal, open, pack, unpack, buildTeam, parseLoc, distance, lockTeam, unlockTeam, randomId, parseShort, hashString, toB64, fromB64 };
 })(typeof window !== 'undefined' ? window : globalThis);

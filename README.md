@@ -20,9 +20,10 @@ GitHub Pages on a free account only works for **public** repos. That's fine here
 3. Fill in the **final bar**. Each team gets its clue right after finishing its own route.
 4. Optional: add a **location** to any bar. Teams then need the right answer *and* their phone has to be near the bar (330 ft by default) before the next clue unlocks. Paste the coordinates from Google Maps (press and hold on the bar, then copy the numbers), or stand in the bar while scouting and tap **Use my location**. Give each of those bars its own **GPS backup code** that you can text a team if their phone won't get a fix there. A code only works at its own bar.
 5. Set the **number of teams**. **Stagger starts** gives every team a different first bar in the same loop. You can also reorder, add, or remove bars for each team by hand.
-6. Click **Create team links**, then send each team its link or show them its QR code. **Print host cheat sheet** prints every route with its answers.
+6. Click **Create team links**, then send each team its link. **Print host cheat sheet** prints every route with its answers.
+7. For **short links and QR codes**, tap **Download hunt-….json** under the links, then on GitHub open this repo, tap **Add file → Upload files**, add the file, and commit. A minute or two later the builder shows **✓ Live**, and each team's short link and QR code work. The file is safe to make public: each team's part only opens with the key in that team's own link.
 
-Each phone saves its own progress, so refreshing the page or closing the browser doesn't lose a team's place. If you edit the hunt after sending links, make new links and send them again.
+Each phone saves its own progress, so refreshing the page or closing the browser doesn't lose a team's place. If you edit the hunt after sending long links, make new links and send them again. With short links, create the links again and upload the new hunt file over the old one; the short links and QR codes stay the same. Use **Save file** after creating links so the short links survive loading the hunt somewhere else.
 
 Use **Save file** to back up a hunt and **Load file** to edit it later or on another computer.
 

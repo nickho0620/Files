@@ -42,6 +42,8 @@
     .toolbar .inner { max-width: 880px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .toolbar .brand { font: 800 1.1rem/1 var(--display); margin-right: auto; text-decoration: none; color: var(--text); }
     .stale { display: none; }
+    #publish-status.good { color: var(--green); }
+    #publish-status.bad { color: var(--red); }
     .loc-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
     .loc-row .field { flex: 1 1 240px; min-width: 0; }
     .loc-status { font-size: 0.8rem; margin-top: 6px; }
@@ -129,7 +131,7 @@
       <div class="section-head">
         <div>
           <h2><span class="step-num">5</span>Send links</h2>
-          <p class="muted small">Each team gets its own link. Send it in your group chat or let them scan the QR code. If you change the hunt, make new links and resend them.</p>
+          <p class="muted small">Each team gets its own link. Send it in your group chat, or upload the hunt file (below) to get short links and QR codes. If you change the hunt, create the links again.</p>
         </div>
       </div>
       <div id="warnings"></div>
@@ -140,6 +142,7 @@
       <div id="links-wrap">
         <div class="warn stale" style="margin-bottom:12px">You've changed the hunt since making these links. Create them again before sending.</div>
         <div id="links"></div>
+        <div id="publish" style="margin-top:16px"></div>
       </div>
     </div>
 

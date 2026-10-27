@@ -334,17 +334,48 @@
       </div>`;
   }
 
-  async function init() {
-    const data = location.hash.slice(1);
-    if (!data) return fail('Open the team link your host sent you.');
+  // Short links fetch the team's locked hunt from the file the host
+  // uploaded. A copy is kept on the phone so a bar with no signal is fine.
+  async function loadShort(short, raw) {
+    const cacheKey = 'hunt-short:' + raw;
     try {
+      const res = await fetch(`hunt-${short.id}.json?t=${Date.now()}`, { cache: 'no-store' });
+      if (res.status === 404) throw new Error('not-published');
+      if (!res.ok) throw new Error('network');
+      const file = await res.json();
+      const blob = file.teams && file.teams[short.slot];
+      if (!blob) throw new Error('bad-link');
+      const data = await Hunt.unlockTeam(blob, short.key).catch(() => { throw new Error('bad-link'); });
+      try { localStorage.setItem(cacheKey, data); } catch (e) { /* ignore */ }
+      return data;
+    } catch (err) {
+      let cached = null;
+      try { cached = localStorage.getItem(cacheKey); } catch (e) { /* ignore */ }
+      if (cached) return cached;
+      throw err;
+    }
+  }
+
+  async function init() {
+    const raw = location.hash.slice(1);
+    if (!raw) return fail('Open the team link your host sent you.');
+    const short = Hunt.parseShort(raw);
+    let data = raw;
+    try {
+      if (short) data = await loadShort(short, raw);
       hunt = await Hunt.unpack(data);
       salt = Hunt.fromB64(hunt.salt);
     } catch (e) {
-      return fail(e.message.includes('too old') ? e.message : 'This link looks broken or incomplete. Ask your host to send it again.');
+      const msg = e.message === 'not-published'
+        ? "This hunt isn't on the website yet. Ask your host to upload the hunt file, then try again in a minute."
+        : e.message === 'network' || e instanceof TypeError
+          ? "Couldn't reach the hunt. Check your signal and try again."
+          : e.message.includes('too old') ? e.message : 'This link looks broken or incomplete. Ask your host to send it again.';
+      return fail(msg);
     }
     document.title = `${hunt.team} · ${hunt.title || 'Bar Hunt'}`;
-    storeKey = 'hunt:' + Hunt.hashString(data);
+    // Short links keep their progress even if the host re-uploads the hunt.
+    storeKey = 'hunt:' + Hunt.hashString(short ? raw : data);
     try { localStorage.setItem('hunt:last', JSON.stringify({ url: location.href, team: hunt.team, title: hunt.title })); } catch (e) { /* ignore */ }
     state = load() || fresh();
     render();
